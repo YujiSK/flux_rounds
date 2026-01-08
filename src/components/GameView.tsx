@@ -267,16 +267,16 @@ export default function GameView({ state, setState }: Props) {
                 selectedCardIds: [],
             };
 
-            // If current player empties hand on discard => out triggers (final turns)
+            // Out trigger: only if hand became 0 and no Out has been triggered yet
             if (newHand.length === 0) {
                 base = triggerOutIfNeeded(base, me.id);
-            } else {
-                // If out already triggered earlier by someone else, and THIS player just finished their turn,
-                // decrement remaining final turns (exclude the out player's own "out" turn).
-                if (base.outTriggeredByPlayerId && base.outTriggeredByPlayerId !== me.id) {
-                    base = consumeOutTurnIfNeeded(base);
-                    if (base.status !== "PLAYING") return base; // round ended
-                }
+            }
+
+            // ★ IMPORTANT: If Out is already active and THIS player (not the Out player) just finished their turn,
+            // ALWAYS consume the final turn counter (regardless of whether their hand became 0)
+            if (base.outTriggeredByPlayerId && base.outTriggeredByPlayerId !== me.id) {
+                base = consumeOutTurnIfNeeded(base);
+                if (base.status !== "PLAYING") return base; // round ended
             }
 
             // Next player
