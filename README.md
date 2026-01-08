@@ -3,7 +3,12 @@
 A round-based card game with **Five Crowns compatible rules**, built as a **pure front-end SPA** on **GitHub Pages**.
 
 ## Live Demo
-**[https://YOUR_USERNAME.github.io/flux_rounds/](https://YOUR_USERNAME.github.io/flux_rounds/)**
+**[https://YujiSK.github.io/flux_rounds/](https://YujiSK.github.io/flux_rounds/)**
+
+### Demo Video
+![Gameplay Demo](./public/demo.webp)
+*Draw → Select → Discard → Turn transition*
+
 
 ## Key Features
 - **Five Crowns Compatible**: 11 rounds, 5 suits, Jokers (6), round wilds
