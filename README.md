@@ -12,10 +12,57 @@ A round-based card game with **Five Crowns compatible rules**, built as a **pure
 - **Turn flow**: `Draw → Meld (optional) → Lay Off (optional) → Discard`
 - **Validation-first**: Meld/Lay Off validated before commit
 - **Deterministic shuffle**: Seedable PRNG for reproducibility
+- **Unit-tested**: Core rule validation with Vitest (meld/layoff)
 - **GitHub Pages–only**: No server, no database
 
 ### Rules Note
 Go Out is **discard-only** (Five Crowns style): Meld/Lay Off cannot reduce hand to zero; Out triggers only when discard makes the hand empty.
+
+---
+
+## Design Decisions
+
+### Why 2-phase turn gating (NEED_DRAW → NEED_DISCARD)
+The UI enforces a strict two-phase state machine:
+- NEED_DRAW: draw exactly one card (from deck or discard pile)
+- NEED_DISCARD: optional meld/layoff actions, then exactly one discard
+
+This eliminates illegal operations (double-draw, discard-before-draw) by construction and keeps the game flow deterministic and easy to review.
+
+### Why validation-first for Meld / Lay Off
+All meld and layoff operations are validated before committing state changes:
+- `validateMeld()` verifies BOOK/RUN correctness
+- `validateLayoff()` re-validates (existing meld + added cards)
+
+This reduces UI-layer complexity and prevents inconsistent states from being created.
+
+### Why "Go Out happens on discard only"
+To match Five Crowns-style flow and avoid ambiguous end-of-turn states:
+- Meld/Layoff must keep at least 1 card in hand for discard
+- Go Out triggers only when a discard results in an empty hand
+
+This makes "turn end" the single synchronization point and keeps final-turn handling reliable.
+
+### Why deterministic shuffle (mulberry32)
+Shuffling uses a deterministic PRNG so that a given seed can reproduce the same game state.
+This is useful for debugging, validation, and future automated testing.
+
+---
+
+## Edge Cases Handled
+
+- **Final turn consumption even if the player's hand becomes 0**
+  After an Out is triggered, each non-Out player consumes exactly one final turn on discard.
+  This consumption occurs regardless of whether their post-discard hand becomes 0.
+
+- **Out is immutable once triggered**
+  The first player who goes out remains the Out trigger for the round; subsequent empty hands do not overwrite `outTriggeredByPlayerId`.
+
+- **Validation blocks illegal "empty hand via meld/layoff"**
+  Meld/Layoff cannot reduce the hand to zero; at least one card must remain for discard.
+
+- **Core rule logic is unit-tested**
+  Meld and Layoff validation are covered with Vitest tests (`validateMeld`, `validateLayoff`).
 
 ---
 
@@ -150,9 +197,9 @@ This project focuses on demonstrating software engineering skills (state modelin
 ## Next Enhancements (Optional Roadmap)
 
 * ~~Lay off onto existing melds~~ ✅ Implemented
+* ~~Unit tests for validator~~ ✅ Implemented (Vitest)
 * AI opponent (single-player)
 * Animation polish (Framer Motion)
-* Unit tests for validator + deterministic deck states
 
 ---
 

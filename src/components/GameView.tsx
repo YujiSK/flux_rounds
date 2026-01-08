@@ -10,7 +10,7 @@ import {
     recycleDiscardIntoDraw,
     defaultRng,
 } from "../game/deck";
-import { nextRound, triggerOutIfNeeded, consumeOutTurnIfNeeded } from "../game/state";
+import { nextRound, afterDiscard } from "../game/state";
 import { validateMeld, validateLayoff } from "../game/validator";
 
 import CardTile from "./CardTile";
@@ -39,6 +39,37 @@ function sortBySuitThenRank(hand: Card[]): Card[] {
         if (sa !== sb) return sa - sb;
         return (a.rank as number) - (b.rank as number);
     });
+}
+
+/**
+ * ターンフェーズとゲームステータスに応じたアクションガイドを生成
+ */
+function getActionGuide(state: GameState): { title: string; subtitle: string } {
+    if (state.status === "ROUND_END") {
+        return { title: "Round ended", subtitle: "Review scores, then proceed to next round." };
+    }
+    if (state.status === "GAME_OVER") {
+        return { title: "Game over", subtitle: "Lowest total score wins." };
+    }
+
+    const isFinalTurns = !!state.outTriggeredByPlayerId;
+    const finalLeft = state.turnsRemainingAfterOut ?? 0;
+
+    if (state.turnPhase === "NEED_DRAW") {
+        return {
+            title: "Your turn: Draw 1 card",
+            subtitle: isFinalTurns
+                ? `Final turns mode. Choose Deck or Discard pile. (Remaining: ${finalLeft})`
+                : "Choose Deck or Discard pile.",
+        };
+    }
+
+    return {
+        title: "Your turn: Discard 1 card",
+        subtitle: isFinalTurns
+            ? `Final turns mode. Meld/Lay Off optional → Discard required. (Remaining: ${finalLeft})`
+            : "Meld/Lay Off are optional. Discard is required to end the turn.",
+    };
 }
 
 export default function GameView({ state, setState }: Props) {
@@ -260,33 +291,25 @@ export default function GameView({ state, setState }: Props) {
                 idx === prev.currentPlayerIndex ? { ...p, hand: newHand } : p
             );
 
-            let base: GameState = {
+            const base: GameState = {
                 ...prev,
                 players,
                 discardPile: newDiscard,
                 selectedCardIds: [],
             };
 
-            // Out trigger: only if hand became 0 and no Out has been triggered yet
-            if (newHand.length === 0) {
-                base = triggerOutIfNeeded(base, me.id);
-            }
+            // ドメインロジックに委譲
+            const result = afterDiscard(base, me.id, newHand.length);
 
-            // ★ IMPORTANT: If Out is already active and THIS player (not the Out player) just finished their turn,
-            // ALWAYS consume the final turn counter (regardless of whether their hand became 0)
-            if (base.outTriggeredByPlayerId && base.outTriggeredByPlayerId !== me.id) {
-                base = consumeOutTurnIfNeeded(base);
-                if (base.status !== "PLAYING") return base; // round ended
+            // メッセージ補完
+            if (!result.message) {
+                const nextPlayer = result.players[result.currentPlayerIndex];
+                return {
+                    ...result,
+                    message: `${me.name} discarded 1 card. Next: ${nextPlayer.name} (Draw 1).`,
+                };
             }
-
-            // Next player
-            const nextPlayerIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
-            return {
-                ...base,
-                currentPlayerIndex: nextPlayerIndex,
-                turnPhase: "NEED_DRAW",
-                message: base.message ?? `${me.name} discarded 1 card. Next: ${players[nextPlayerIndex].name} (Draw 1).`,
-            };
+            return result;
         });
     };
 
@@ -306,6 +329,41 @@ export default function GameView({ state, setState }: Props) {
                         Turn: <span className="font-semibold text-slate-100">{currentPlayer.name}</span>
                     </div>
                 </header>
+
+                {/* Action Guide Bar */}
+                {(() => {
+                    const guide = getActionGuide(state);
+                    return (
+                        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div>
+                                    <div className="text-slate-100 text-lg font-semibold">{guide.title}</div>
+                                    <div className="mt-1 text-slate-300 text-sm leading-relaxed">{guide.subtitle}</div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full border border-slate-600 px-3 py-1 text-xs font-medium text-slate-200">
+                                        {state.status}
+                                    </span>
+                                    <span className="rounded-full border border-slate-600 px-3 py-1 text-xs font-medium text-slate-200">
+                                        {state.turnPhase}
+                                    </span>
+                                    {state.outTriggeredByPlayerId && (
+                                        <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200">
+                                            Final Turns: {state.turnsRemainingAfterOut ?? 0}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {state.message && (
+                                <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-sm text-slate-200">
+                                    {state.message}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                     <div className="lg:col-span-4 space-y-4">
@@ -512,9 +570,8 @@ export default function GameView({ state, setState }: Props) {
                         )}
                     </div>
                 </section>
-
-                {state.message && <footer className="text-slate-300 text-sm">{state.message}</footer>}
             </div>
         </div>
     );
 }
+

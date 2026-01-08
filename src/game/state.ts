@@ -192,3 +192,43 @@ export function consumeOutTurnIfNeeded(state: GameState): GameState {
     }
     return { ...state, turnsRemainingAfterOut: next };
 }
+
+/**
+ * Discard後の状態遷移を処理する。
+ * 
+ * Invariants:
+ * - 初回Out判定: discardで手札0になった場合のみ発火
+ * - Out済みなら上書きしない (triggerOutIfNeeded内で保証)
+ * - Out後の最終ターン消化: Out本人以外がdiscardでターン終了したら必ず減らす
+ * - turnsRemainingAfterOut === 0 でラウンド終了
+ * 
+ * @param state - Discard後の状態（手札・捨て札は既に更新済み）
+ * @param playerId - Discardを行ったプレイヤーのID
+ * @param newHandLength - Discard後の手札枚数
+ */
+export function afterDiscard(
+    state: GameState,
+    playerId: string,
+    newHandLength: number
+): GameState {
+    let s = state;
+
+    // A) 初回Out判定（discardで0になった場合のみ）
+    if (newHandLength === 0 && !s.outTriggeredByPlayerId) {
+        s = triggerOutIfNeeded(s, playerId);
+    }
+
+    // B) Out後の最終ターン消化（Out本人以外がdiscardでターン終了したら必ず減らす）
+    if (s.outTriggeredByPlayerId && s.outTriggeredByPlayerId !== playerId) {
+        s = consumeOutTurnIfNeeded(s);
+        if (s.status !== "PLAYING") return s; // round ended
+    }
+
+    // C) 次プレイヤーへ遷移
+    const nextPlayerIndex = (s.currentPlayerIndex + 1) % s.players.length;
+    return {
+        ...s,
+        currentPlayerIndex: nextPlayerIndex,
+        turnPhase: "NEED_DRAW",
+    };
+}
