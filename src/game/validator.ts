@@ -5,7 +5,7 @@ import { isWildRank } from "./rules";
 export type ValidationResult = { ok: true } | { ok: false; reason: string };
 
 export function validateMeld(cards: Card[], type: MeldType, rule: RoundRule): ValidationResult {
-    if (cards.length < 3) return { ok: false, reason: "Need at least 3 cards." };
+    if (cards.length < 3) return { ok: false, reason: "Must select at least 3 cards" };
 
     if (type === "BOOK") return validateBook(cards, rule);
     return validateRun(cards, rule);
@@ -19,7 +19,7 @@ function validateBook(cards: Card[], rule: RoundRule): ValidationResult {
     }
     const target = nonWild[0].rank;
     for (const c of nonWild) {
-        if (c.rank !== target) return { ok: false, reason: "BOOK must share the same rank." };
+        if (c.rank !== target) return { ok: false, reason: "Must share the same rank" };
     }
     return { ok: true };
 }
@@ -41,14 +41,14 @@ function validateRun(cards: Card[], rule: RoundRule): ValidationResult {
     // Suit must match among non-wilds
     const suit: Suit = nonWild[0].suit;
     for (const c of nonWild) {
-        if (c.suit !== suit) return { ok: false, reason: "RUN must be a single suit (non-wild cards)." };
+        if (c.suit !== suit) return { ok: false, reason: "Must be a single suit" };
     }
 
     // Sort non-wild ranks
     const ranks = nonWild.map((c) => c.rank).sort((a, b) => (a as number) - (b as number));
     // No duplicates
     for (let i = 1; i < ranks.length; i++) {
-        if (ranks[i] === ranks[i - 1]) return { ok: false, reason: "RUN cannot contain duplicate ranks." };
+        if (ranks[i] === ranks[i - 1]) return { ok: false, reason: "Must not contain duplicate ranks" };
     }
 
     const wildCount = cards.length - nonWild.length;
@@ -60,12 +60,12 @@ function validateRun(cards: Card[], rule: RoundRule): ValidationResult {
         const prev = ranks[i - 1] as number;
         const cur = ranks[i] as number;
         const gap = cur - prev - 1;
-        if (gap < 0) return { ok: false, reason: "Invalid rank ordering." };
+        if (gap < 0) return { ok: false, reason: "Must have valid rank order" };
         needed += gap;
     }
 
     if (needed > wildCount) {
-        return { ok: false, reason: "Not enough wild cards to complete the RUN sequence." };
+        return { ok: false, reason: "Must have enough wilds to fill gaps" };
     }
 
     // Also ensure length>=3 already guaranteed. No need to bound endpoints.
@@ -83,6 +83,6 @@ export function validateLayoff(params: {
     rule: RoundRule;
 }): ValidationResult {
     const { meldType, meldCards, addedCards, rule } = params;
-    if (addedCards.length === 0) return { ok: false, reason: "Select cards to lay off." };
+    if (addedCards.length === 0) return { ok: false, reason: "Must select cards to layoff" };
     return validateMeld([...meldCards, ...addedCards], meldType, rule);
 }

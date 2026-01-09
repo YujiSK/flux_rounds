@@ -5,9 +5,11 @@ import { rankLabel } from "../game/rules";
 type Props = {
     card: Card;
     isWild: boolean;
-    selected: boolean;
+    selected?: boolean;
+    dimmed?: boolean;
     disabled?: boolean;
-    onClick?: () => void;
+    highlight?: "book" | "run" | null;
+    onClick: () => void;
 };
 
 function suitAccent(suit: Card["suit"]) {
@@ -44,7 +46,7 @@ function suitGlyph(suit: Card["suit"]) {
     }
 }
 
-export default function CardTile({ card, isWild, selected, disabled, onClick }: Props) {
+export default function CardTile({ card, isWild, selected, dimmed, disabled, highlight, onClick }: Props) {
     const isJoker = card.rank === 0;
 
     return (
@@ -53,11 +55,18 @@ export default function CardTile({ card, isWild, selected, disabled, onClick }: 
             disabled={disabled}
             className={[
                 "relative w-[92px] h-[120px] md:w-[102px] md:h-[132px]",
-                "rounded-2xl border transition",
-                "bg-slate-950/35 backdrop-blur",
+                "rounded-2xl border transition-all duration-300",
+                "bg-slate-950/35 backdrop-blur-sm",
                 "disabled:opacity-40",
-                selected ? "border-slate-100 shadow-[0_0_0_2px_rgba(255,255,255,0.15)]" : "border-slate-700",
-                isWild ? "ring-1 ring-amber-400/70" : "",
+                selected
+                    ? (highlight === "book" ? "border-blue-400 shadow-[0_0_20px_rgba(96,165,250,0.3)]" :
+                        highlight === "run" ? "border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)]" :
+                            "border-white shadow-[0_0_20px_rgba(255,255,255,0.2)]") + " -translate-y-1 z-10 scale-[1.02]"
+                    : "border-slate-700/80",
+                dimmed ? "opacity-60 scale-[0.98]" : "opacity-100",
+                isWild ? "ring-1 ring-amber-400/50" : "",
+                (selected && highlight === "book") ? "ring-2 ring-blue-400/20" :
+                    (selected && highlight === "run") ? "ring-2 ring-emerald-400/20" : "",
             ].join(" ")}
             title={card.id}
         >
